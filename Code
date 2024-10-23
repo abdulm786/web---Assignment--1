@@ -1,0 +1,134 @@
+import { Component, Injectable, Pipe, PipeTransform } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+
+// Custom Pipe for formatting the result
+@Pipe({
+  name: 'resultFormat'
+})
+export class ResultFormatPipe implements PipeTransform {
+  transform(value: number): string {
+    return value.toFixed(2);  // Limit result to 2 decimal places
+  }
+}
+
+// Service for handling the calculation logic
+@Injectable({
+  providedIn: 'root'
+})
+export class CalculatorService {
+  calculate(operand1: number, operand2: number, operator: string): number {
+    switch (operator) {
+      case '+':
+        return operand1 + operand2;
+      case '-':
+        return operand1 - operand2;
+      case '*':
+        return operand1 * operand2;
+      case '/':
+        return operand2 !== 0 ? operand1 / operand2 : NaN;  // Handle divide by zero
+      default:
+        return 0;
+    }
+  }
+}
+
+// Main Component
+@Component({
+  selector: 'app-calculator',
+  template: `
+    <div class="calculator">
+      <form [formGroup]="calcForm">
+        <input class="result" formControlName="display" readonly>
+      </form>
+      <div class="buttons">
+        <button *ngFor="let button of buttons" (click)="onButtonClick(button)">
+          {{ button }}
+        </button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .calculator {
+      max-width: 300px;
+      margin: 50px auto;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+    }
+    .result {
+      width: 100%;
+      font-size: 2em;
+      text-align: right;
+      padding: 10px;
+      border: 2px solid #ccc;
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    button {
+      font-size: 1.5em;
+      padding: 20px;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+    button:active {
+      background-color: #ddd;
+    }
+  `]
+})
+export class CalculatorComponent {
+  calcForm: FormGroup;
+  buttons: string[] = ['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'];
+  currentOperator: string = '';
+  operand1: number = 0;
+
+  constructor(private fb: FormBuilder, private calcService: CalculatorService) {
+    this.calcForm = this.fb.group({
+      display: ['0']
+    });
+  }
+
+  onButtonClick(value: string) {
+    let currentValue = this.calcForm.get('display')?.value;
+
+    if (!isNaN(parseFloat(value)) || value === '.') {
+      // Handle number and decimal input
+      this.calcForm.patchValue({ display: currentValue === '0' ? value : currentValue + value });
+    } else if (['+', '-', '*', '/'].includes(value)) {
+      // Handle operator input
+      this.operand1 = parseFloat(currentValue);
+      this.currentOperator = value;
+      this.calcForm.patchValue({ display: '0' });
+    } else if (value === '=') {
+      // Handle equal sign and calculate
+      const operand2 = parseFloat(currentValue);
+      const result = this.calcService.calculate(this.operand1, operand2, this.currentOperator);
+      this.calcForm.patchValue({ display: result.toString() });
+    } else {
+      // Clear or reset (e.g., "C" button)
+      this.calcForm.patchValue({ display: '0' });
+    }
+  }
+}
+
+// Main App Module
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { ReactiveFormsModule } from '@angular/forms';
+
+@NgModule({
+  declarations: [
+    CalculatorComponent,
+    ResultFormatPipe
+  ],
+  imports: [
+    BrowserModule,
+    ReactiveFormsModule
+  ],
+  providers: [CalculatorService],
+  bootstrap: [CalculatorComponent]
+})
+export class AppModule { }
